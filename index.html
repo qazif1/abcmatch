@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Alphabet Matching Game</title>
+  <style>
+    body{
+      font-family:'Comic Sans MS',cursive,sans-serif;text-align:center;
+      background:linear-gradient(to bottom,#f0f8ff,#e6f9ff);padding:20px;min-height:100vh;
+    }
+    h1{color:#2e8b57;text-shadow:2px 2px 4px rgba(0,0,0,0.1)}
+    .letter-btn{
+      display:inline-block;width:70px;height:70px;margin:10px;background:#4682b4;color:#fff;
+      font-size:32px;font-weight:bold;border-radius:15px;line-height:70px;cursor:pointer;
+      box-shadow:0 4px 8px rgba(0,0,0,0.2);transition:all .3s;
+    }
+    .letter-btn:hover{transform:scale(1.1);background:#5f9ea0}
+    #letters{max-width:800px;margin:0 auto}
+  </style>
+</head>
+<body>
+  <h1>Choose a Letter to Practice</h1>
+  <div id="letters"></div>
+
+  <script>
+    const letters=[...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
+    const container=document.getElementById('letters');
+    letters.forEach(letter=>{
+      const btn=document.createElement('div');
+      btn.className='letter-btn';btn.textContent=letter;
+      btn.onclick=()=>{window.location.href=`game.html?letter=${letter}`};
+      container.appendChild(btn);
+    });
+  </script>
+</body>
+</html>

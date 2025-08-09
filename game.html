@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Letter Game</title>
+  <style>
+    body{
+      font-family:'Comic Sans MS',cursive,sans-serif;text-align:center;
+      background:linear-gradient(to bottom,#f0f8ff,#e6f9ff);padding:20px;min-height:100vh;
+      display:flex;flex-direction:column;gap:14px;
+    }
+    h1{color:#2e8b57;text-shadow:2px 2px 4px rgba(0,0,0,0.1);margin:0}
+    #hud{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+    .pill{background:#fff;border:2px solid #4682b4;border-radius:999px;padding:6px 14px;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,0.1)}
+    #target-letter{font-size:96px;margin:4px 0 0;color:#d2691e;text-shadow:3px 3px 6px rgba(0,0,0,0.1)}
+
+    /* progress bar */
+    #progress-wrap{max-width:980px;margin:0 auto;width:100%}
+    #progress{height:14px;background:#dbeeff;border:2px solid #4682b4;border-radius:999px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.12)}
+    #progress-fill{height:100%;width:0;background:#3aa76d;transition:width .6s ease;}
+    #progress-label{font-size:14px;margin-top:4px;color:#2e4b6b}
+
+    /* controls */
+    #controls{display:flex;gap:10px;justify-content:center}
+    button{
+      padding:10px 18px;background:#2e8b57;color:#fff;border:none;border-radius:10px;font-size:18px;
+      cursor:pointer;box-shadow:0 4px 8px rgba(0,0,0,0.2);transition:all .25s
+    }
+    button:hover{background:#3aa76d;transform:scale(1.03)}
+
+    /* layout: options on top, drop at bottom */
+    #game-area{display:flex;flex-direction:column;justify-content:space-between;gap:18px;max-width:980px;margin:0 auto;flex:1;width:100%;}
+
+    /* options row */
+    #options{display:flex;justify-content:center;align-items:center;gap:24px;flex-wrap:nowrap;}
+    .image-option{width:170px;cursor:grab;transition:transform .2s;user-select:none}
+    .image-option:active{cursor:grabbing}
+    .image-option img{
+      width:160px;height:160px;object-fit:contain;border:4px solid #4682b4;border-radius:15px;
+      padding:10px;background:#fff;box-shadow:0 4px 8px rgba(0,0,0,0.2)
+    }
+    .image-option:hover{transform:translateY(-2px) scale(1.02)}
+
+    /* smaller drop box at bottom */
+    .dropzone{
+      align-self:center;width:320px;min-height:190px;background:#ffffffee;border:3px dashed #2e8b57;border-radius:16px;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 14px;box-shadow:0 4px 10px rgba(0,0,0,0.08);position:relative;overflow:hidden
+    }
+    .dropzone.highlight{background:#e9ffef;border-color:#3aa76d}
+    .dz-title{font-size:16px;margin-bottom:6px;color:#2e8b57;font-weight:bold}
+
+    /* preview + next arranged together */
+    .drop-body{display:flex;align-items:center;gap:12px;margin-top:6px}
+    #drop-preview{width:120px;height:120px;display:flex;align-items:center;justify-content:center}
+    #drop-preview img{
+      width:110px;height:110px;object-fit:contain;border:6px solid transparent;border-radius:16px;
+      padding:8px;background:#fff;box-shadow:0 6px 12px rgba(0,0,0,0.18)
+    }
+    #drop-hint{font-size:36px;opacity:.25}
+
+    /* Next button now lives by the preview */
+    #next-btn{display:none;background:#ff8c42}
+    #next-btn:hover{background:#ffa25f}
+
+    #feedback{font-size:24px;margin:6px 0 0;min-height:32px;font-weight:bold}
+    .correct{color:#2e8b57}
+    .incorrect{color:#ff6b6b}
+    .shake{animation:shake .34s linear 1}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+    .confetti{position:fixed;width:10px;height:10px;background-color:#f00;border-radius:50%;pointer-events:none}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  </style>
+</head>
+<body>
+  <h1>Match the picture that starts with:</h1>
+
+  <div id="hud">
+    <div class="pill">Score: <span id="score">0</span></div>
+    <div class="pill">Letter <span id="count">1</span>/26</div>
+    <a class="pill" href="index.html" style="text-decoration:none;color:#4682b4">↩ Back</a>
+  </div>
+
+  <!-- Progress -->
+  <div id="progress-wrap">
+    <div id="progress"><div id="progress-fill"></div></div>
+    <div id="progress-label">Progress</div>
+  </div>
+
+  <div id="target-letter" aria-live="polite">A</div>
+
+  <div id="controls">
+    <button id="play-letter">🔊 Letter Sound</button>
+  </div>
+
+  <div id="game-area">
+    <!-- TOP: choices -->
+    <div id="options" aria-label="Choices"></div>
+
+    <!-- BOTTOM: small drop box -->
+    <div id="drop-area" class="dropzone" aria-dropeffect="copy">
+      <div class="dz-title">Drag and drop the picture for <span id="dz-letter">A</span></div>
+
+      <div id="drop-hint">⬇️</div>
+
+      <div class="drop-body">
+        <div id="drop-preview"></div>
+        <button id="next-btn">Next ➔</button>
+      </div>
+
+      <div class="sr-only" id="dz-instructions">Drag an image here and drop to answer.</div>
+    </div>
+  </div>
+
+  <div id="feedback" aria-live="polite"></div>
+
+  <script>
+    // ---------- Setup ----------
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentLetter = (urlParams.get('letter') || 'A').toUpperCase();
+    const targetEl = document.getElementById('target-letter');
+    const dzLetterEl = document.getElementById('dz-letter');
+    targetEl.textContent = currentLetter;
+    dzLetterEl.textContent = currentLetter;
+
+    const scoreEl = document.getElementById('score');
+    const COUNT_EL = document.getElementById('count');
+    const LETTER_INDEX = currentLetter.charCodeAt(0) - 64; // A=1
+    COUNT_EL.textContent = LETTER_INDEX;
+
+    // progress bar
+    const progressFill = document.getElementById('progress-fill');
+    const progressLabel = document.getElementById('progress-label');
+    function updateProgressBar(){
+      const pct = (LETTER_INDEX/26)*100;
+      progressFill.style.width = pct + '%';
+      progressLabel.textContent = `Progress: ${LETTER_INDEX} / 26`;
+    }
+    updateProgressBar();
+
+    const SCORE_KEY = 'alpha_score_v1';
+    let score = Number(sessionStorage.getItem(SCORE_KEY) || 0);
+    scoreEl.textContent = score;
+
+    const optionsWrap = document.getElementById('options');
+    const dropzone = document.getElementById('drop-area');
+    const dropPreview = document.getElementById('drop-preview');
+    const dropHint = document.getElementById('drop-hint');
+    const feedback = document.getElementById('feedback');
+    const nextBtn = document.getElementById('next-btn');
+
+    // images
+    const letterImages = {
+      'A': { correct: 'apple.png', wrong: ['ball.png', 'umbrella.png'] },
+      'B': { correct: 'ball.png', wrong: ['apple.png', 'cat.png'] },
+      'C': { correct: 'cat.png', wrong: ['dog.png', 'egg.png'] },
+      'D': { correct: 'dog.png', wrong: ['fish.png', 'giraffe.png'] },
+      'E': { correct: 'egg.png', wrong: ['fish.png', 'giraffe.png'] },
+      'F': { correct: 'fish.png', wrong: ['giraffe.png', 'house.png'] },
+      'G': { correct: 'giraffe.png', wrong: ['house.png', 'ice.png'] },
+      'H': { correct: 'house.png', wrong: ['ice.png', 'juice.png'] },
+      'I': { correct: 'ice.png', wrong: ['juice.png', 'kite.png'] },
+      'J': { correct: 'juice.png', wrong: ['kite.png', 'lemon.png'] },
+      'K': { correct: 'kite.png', wrong: ['lemon.png', 'milk.png'] },
+      'L': { correct: 'lemon.png', wrong: ['milk.png', 'night.png'] },
+      'M': { correct: 'milk.png', wrong: ['night.png', 'orange.png'] },
+      'N': { correct: 'night.png', wrong: ['orange.png', 'pears.png'] },
+      'O': { correct: 'orange.png', wrong: ['pears.png', 'queen.png'] },
+      'P': { correct: 'pears.png', wrong: ['queen.png', 'rabbit.png'] },
+      'Q': { correct: 'queen.png', wrong: ['rabbit.png', 'sun.png'] },
+      'R': { correct: 'rabbit.png', wrong: ['sun.png', 'tree.png'] },
+      'S': { correct: 'sun.png', wrong: ['tree.png', 'umbrella.png'] },
+      'T': { correct: 'tree.png', wrong: ['umbrella.png', 'violin.png'] },
+      'U': { correct: 'umbrella.png', wrong: ['violin.png', 'whale.png'] },
+      'V': { correct: 'violin.png', wrong: ['whale.png', 'xylophone.png'] },
+      'W': { correct: 'whale.png', wrong: ['xylophone.png', 'yoyo.png'] },
+      'X': { correct: 'xylophone.png', wrong: ['yoyo.png', 'zebra.png'] },
+      'Y': { correct: 'yoyo.png', wrong: ['zebra.png', 'apple.png'] },
+      'Z': { correct: 'zebra.png', wrong: ['apple.png', 'ball.png'] }
+    };
+
+    // ---------- Audio ----------
+    function speak(text){
+      const u=new SpeechSynthesisUtterance(text);
+      u.rate=0.9;u.pitch=1.1;u.volume=1;
+      const voices=window.speechSynthesis.getVoices();
+      const fem=voices.find(v=>/female|woman|zira|susan|samantha|victoria|karen/i.test(v.name));
+      if(fem) u.voice=fem;
+      window.speechSynthesis.speak(u);
+    }
+    function playLetterSound(letter){
+      const audio=new Audio(`sounds/${letter}.mp3`);
+      let played=false;
+      audio.addEventListener('canplaythrough',()=>{ played=true; audio.play().catch(()=>speak(letter)); },{once:true});
+      audio.addEventListener('error',()=>{ if(!played) speak(letter); });
+      setTimeout(()=>{ if(!played) audio.play().catch(()=>speak(letter)); },300);
+    }
+    document.getElementById('play-letter').addEventListener('click',()=>playLetterSound(currentLetter));
+
+    // ---------- Build options (drag only; click = speak only) ----------
+    function makeOption(src){
+      const wrap=document.createElement('div');
+      wrap.className='image-option';
+      wrap.draggable=true;
+      wrap.dataset.img=src;
+      wrap.setAttribute('role','img');
+
+      const img=document.createElement('img');
+      img.src=src; img.alt=src.replace('.png','');
+      wrap.appendChild(img);
+
+      // DRAG
+      wrap.addEventListener('dragstart',(e)=>{
+        e.dataTransfer.setData('text/plain',src);
+        e.dataTransfer.effectAllowed='copy';
+      });
+
+      // CLICK only speaks (no auto-drop)
+      wrap.addEventListener('click',()=>{ speak(src.replace('.png','')); });
+
+      // Keyboard: just speak
+      wrap.tabIndex=0;
+      wrap.addEventListener('keydown',(e)=>{
+        if(e.key==='Enter' || e.key===' '){
+          speak(src.replace('.png',''));
+          e.preventDefault();
+        }
+      });
+
+      return wrap;
+    }
+
+    // ---------- Drop zone ----------
+    dropzone.addEventListener('dragover',(e)=>{ e.preventDefault(); dropzone.classList.add('highlight'); });
+    dropzone.addEventListener('dragleave',()=>dropzone.classList.remove('highlight'));
+    dropzone.addEventListener('drop',(e)=>{
+      e.preventDefault(); dropzone.classList.remove('highlight');
+      const src=e.dataTransfer.getData('text/plain');
+      handleDrop(src);
+    });
+
+    function showPreview(src, isCorrect){
+      dropHint.style.display='none';
+      dropPreview.innerHTML='';
+      const img=document.createElement('img');
+      img.src=src;
+      img.alt=src.replace('.png','');
+      img.style.borderColor = isCorrect ? '#3aa76d' : '#ff6b6b';
+      dropPreview.appendChild(img);
+    }
+
+    function handleDrop(src){
+      const {correct}=letterImages[currentLetter];
+      const word=src.replace('.png','');
+      speak(word); // still say the word they chose
+
+      const isCorrect = (src===correct);
+      showPreview(src, isCorrect);
+
+      if(isCorrect){
+        feedback.textContent='Correct! 🎉';
+        feedback.className='correct';
+        score += 10; updateScore();
+        lockRound();
+        createConfetti();
+        nextBtn.focus({preventScroll:true}); // Next is right beside the preview
+      }else{
+        feedback.textContent='Oops! Try again';
+        feedback.className='incorrect';
+        // SAY it out loud:
+        speak('Wrong, try again.');
+        score = Math.max(0, score - 2); updateScore();
+        dropzone.classList.add('shake');
+        setTimeout(()=>dropzone.classList.remove('shake'),340);
+        // keep wrong preview briefly, then clear
+        setTimeout(()=>{ dropPreview.innerHTML=''; dropHint.style.display=''; }, 1200);
+      }
+    }
+
+    function updateScore(){
+      scoreEl.textContent=score;
+      sessionStorage.setItem(SCORE_KEY,String(score));
+    }
+
+    function lockRound(){
+      document.querySelectorAll('.image-option').forEach(el=>el.draggable=false);
+      nextBtn.style.display='inline-block';
+    }
+
+    // ---------- Init ----------
+    function setupGame(){
+      optionsWrap.innerHTML='';
+      feedback.textContent=''; feedback.className='';
+      nextBtn.style.display='none';
+      dropPreview.innerHTML='';
+      dropHint.style.display='';
+
+      const {correct, wrong}=letterImages[currentLetter];
+      const all=[correct, ...wrong.slice(0,2)];
+      all.sort(()=>Math.random()-0.5);
+      all.forEach(src=>optionsWrap.appendChild(makeOption(src)));
+
+      playLetterSound(currentLetter);
+    }
+
+    function nextLetter(){
+      const nextCode=currentLetter.charCodeAt(0)+1;
+      if(nextCode<=90){
+        window.location.href=`game.html?letter=${String.fromCharCode(nextCode)}`;
+      }else{
+        window.location.href='index.html';
+      }
+    }
+    nextBtn.addEventListener('click',nextLetter);
+
+    window.onload=setupGame;
+
+    // Confetti
+    function createConfetti(){
+      const colors=['#f00','#0f0','#00f','#ff0','#f0f','#0ff'];
+      for(let i=0;i<40;i++){
+        const c=document.createElement('div');
+        c.className='confetti';
+        c.style.left=Math.random()*window.innerWidth+'px';
+        c.style.top='-10px';
+        c.style.backgroundColor=colors[Math.floor(Math.random()*colors.length)];
+        c.style.width=c.style.height=(Math.random()*10+5)+'px';
+        document.body.appendChild(c);
+        const anim=c.animate(
+          [{top:'-10px',transform:'rotate(0)'},{top:window.innerHeight+'px',transform:'rotate(360deg)'}],
+          {duration:3200,easing:'cubic-bezier(0.1,0.8,0.9,1)'}
+        );
+        anim.onfinish=()=>c.remove();
+      }
+    }
+  </script>
+</body>
+</html>
